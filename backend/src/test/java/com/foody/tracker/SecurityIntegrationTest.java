@@ -169,6 +169,16 @@ class SecurityIntegrationTest {
                 .andExpect(jsonPath("$.error").value("Unprocessable Content"))
                 .andExpect(jsonPath("$.message").value("Cannot transition from EM_PREPARO to ENTREGUE"))
                 .andExpect(jsonPath("$.path").value("/orders/" + orderId + "/status"));
+
+        mockMvc.perform(get("/orders/" + orderId + "/history")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].fromStatus").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$[0].toStatus").value("RECEBIDO"))
+                .andExpect(jsonPath("$[1].fromStatus").value("RECEBIDO"))
+                .andExpect(jsonPath("$[1].toStatus").value("EM_PREPARO"))
+                .andExpect(jsonPath("$[1].changedBy.name").value("Admin Two"));
     }
 
     @Test

@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.foody.tracker.dto.AddressDto;
 import com.foody.tracker.dto.OrderItemResponse;
 import com.foody.tracker.dto.OrderResponse;
+import com.foody.tracker.dto.StatusHistoryEntry;
 import com.foody.tracker.entity.OrderStatus;
 import com.foody.tracker.entity.Role;
 import com.foody.tracker.entity.User;
@@ -243,6 +244,36 @@ class OrderControllerTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[*].field").value(Matchers.hasItem("status")));
+    }
+
+    @Test
+    void findHistoryReturnsTimeline() throws Exception {
+        StatusHistoryEntry created = new StatusHistoryEntry(null, OrderStatus.RECEBIDO,
+                new StatusHistoryEntry.ChangedByRef(1L, "Ana Souza"), Instant.parse("2026-07-30T12:00:00Z"));
+        StatusHistoryEntry progressed = new StatusHistoryEntry(OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO,
+                new StatusHistoryEntry.ChangedByRef(99L, "Admin"), Instant.parse("2026-07-30T12:05:00Z"));
+        when(orderService.findHistory(eq(1L), any())).thenReturn(List.of(created, progressed));
+
+        mockMvc.perform(get("/orders/1/history").with(authentication(principal(1L, Role.CLIENT))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].fromStatus").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$[0].toStatus").value("RECEBIDO"))
+                .andExpect(jsonPath("$[0].changedBy.name").value("Ana Souza"))
+                .andExpect(jsonPath("$[0].changedAt").value("2026-07-30T12:00:00Z"))
+                .andExpect(jsonPath("$[1].fromStatus").value("RECEBIDO"))
+                .andExpect(jsonPath("$[1].toStatus").value("EM_PREPARO"));
+    }
+
+    @Test
+    void findHistoryReturnsNotFoundForOtherUsersOrder() throws Exception {
+        when(orderService.findHistory(eq(99L), any())).thenThrow(new OrderNotFoundException());
+
+        mockMvc.perform(get("/orders/99/history").with(authentication(principal(1L, Role.CLIENT))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Order not found"))
+                .andExpect(jsonPath("$.path").value("/orders/99/history"));
     }
 
     private OrderResponse orderResponse() {

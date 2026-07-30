@@ -272,7 +272,7 @@ Pacote base: `com.foody.tracker` (`controller`, `service`, `repository`, `entity
 ### T06 — Histórico de status
 
 - **Objetivo**: `GET /orders/{id}/history` (dono ou ADMIN), ordenado por `changed_at`.
-- **Validação**: testes de service + controller, incluindo 403 para não-dono.
+- **Validação**: testes de service + controller, incluindo 404 para não-dono (conforme matriz de autorização).
 - **Commits**: `feat: add order status history endpoint`
 
 ### T07 — Tratamento global de erros

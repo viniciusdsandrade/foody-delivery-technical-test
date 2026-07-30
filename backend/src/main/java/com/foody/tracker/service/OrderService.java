@@ -3,6 +3,7 @@ package com.foody.tracker.service;
 import com.foody.tracker.dto.OrderItemRequest;
 import com.foody.tracker.dto.OrderRequest;
 import com.foody.tracker.dto.OrderResponse;
+import com.foody.tracker.dto.StatusHistoryEntry;
 import com.foody.tracker.entity.Order;
 import com.foody.tracker.entity.OrderItem;
 import com.foody.tracker.entity.OrderStatus;
@@ -76,6 +77,14 @@ public class OrderService {
         User changedBy = userRepository.getReferenceById(currentUser.getId());
         historyRepository.save(new OrderStatusHistory(order, previous, newStatus, changedBy));
         return OrderResponse.from(order);
+    }
+
+    @Transactional(readOnly = true)
+    public List<StatusHistoryEntry> findHistory(Long id, AuthenticatedUser currentUser) {
+        findVisibleOrder(id, currentUser);
+        return historyRepository.findByOrderIdOrderByChangedAtAscIdAsc(id).stream()
+                .map(StatusHistoryEntry::from)
+                .toList();
     }
 
     private Order findVisibleOrder(Long id, AuthenticatedUser currentUser) {

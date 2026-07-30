@@ -2,6 +2,7 @@ package com.foody.tracker.controller;
 
 import com.foody.tracker.dto.OrderRequest;
 import com.foody.tracker.dto.OrderResponse;
+import com.foody.tracker.dto.StatusHistoryEntry;
 import com.foody.tracker.dto.UpdateStatusRequest;
 import com.foody.tracker.entity.OrderStatus;
 import com.foody.tracker.security.AuthenticatedUser;
@@ -49,6 +50,12 @@ public class OrderController {
     public OrderResponse findById(@PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
         return orderService.findById(id, currentUser);
+    }
+
+    @GetMapping("/{id}/history")
+    public List<StatusHistoryEntry> findHistory(@PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return orderService.findHistory(id, currentUser);
     }
 
     @PatchMapping("/{id}/status")

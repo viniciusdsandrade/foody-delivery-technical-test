@@ -11,6 +11,7 @@ import com.foody.tracker.dto.AddressDto;
 import com.foody.tracker.dto.OrderItemRequest;
 import com.foody.tracker.dto.OrderRequest;
 import com.foody.tracker.dto.OrderResponse;
+import com.foody.tracker.dto.StatusHistoryEntry;
 import com.foody.tracker.entity.Order;
 import com.foody.tracker.entity.OrderStatus;
 import com.foody.tracker.entity.OrderStatusHistory;
@@ -23,6 +24,7 @@ import com.foody.tracker.repository.OrderStatusHistoryRepository;
 import com.foody.tracker.repository.UserRepository;
 import com.foody.tracker.security.AuthenticatedUser;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -207,6 +209,65 @@ class OrderServiceTest {
         assertThatThrownBy(() -> orderService.updateStatus(10L, OrderStatus.EM_PREPARO, principal(99L, Role.ADMIN)))
                 .isInstanceOf(OrderNotFoundException.class)
                 .hasMessage("Order not found");
+    }
+
+    @Test
+    void findHistoryReturnsTimelineForOwner() {
+        User owner = user(1L, Role.CLIENT);
+        User admin = user(99L, Role.ADMIN);
+        Order order = orderOwnedBy(owner);
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        OrderStatusHistory created = historyEntry(order, null, OrderStatus.RECEBIDO, owner, "2026-07-30T12:00:00Z");
+        OrderStatusHistory progressed = historyEntry(order, OrderStatus.RECEBIDO, OrderStatus.EM_PREPARO, admin,
+                "2026-07-30T12:05:00Z");
+        when(historyRepository.findByOrderIdOrderByChangedAtAscIdAsc(10L)).thenReturn(List.of(created, progressed));
+
+        List<StatusHistoryEntry> history = orderService.findHistory(10L, principal(1L, Role.CLIENT));
+
+        assertThat(history).hasSize(2);
+        assertThat(history.get(0).fromStatus()).isNull();
+        assertThat(history.get(0).toStatus()).isEqualTo(OrderStatus.RECEBIDO);
+        assertThat(history.get(0).changedBy().name()).isEqualTo("Ana Souza");
+        assertThat(history.get(0).changedAt()).isEqualTo(Instant.parse("2026-07-30T12:00:00Z"));
+        assertThat(history.get(1).fromStatus()).isEqualTo(OrderStatus.RECEBIDO);
+        assertThat(history.get(1).toStatus()).isEqualTo(OrderStatus.EM_PREPARO);
+    }
+
+    @Test
+    void findHistoryReturnsTimelineOfOtherUsersOrderForAdmin() {
+        Order order = orderOwnedBy(user(1L, Role.CLIENT));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        when(historyRepository.findByOrderIdOrderByChangedAtAscIdAsc(10L)).thenReturn(List.of());
+
+        assertThat(orderService.findHistory(10L, principal(99L, Role.ADMIN))).isEmpty();
+        verify(historyRepository).findByOrderIdOrderByChangedAtAscIdAsc(10L);
+    }
+
+    @Test
+    void findHistoryThrowsNotFoundWhenClientDoesNotOwnOrder() {
+        Order order = orderOwnedBy(user(2L, Role.CLIENT));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> orderService.findHistory(10L, principal(1L, Role.CLIENT)))
+                .isInstanceOf(OrderNotFoundException.class)
+                .hasMessage("Order not found");
+        verify(historyRepository, never()).findByOrderIdOrderByChangedAtAscIdAsc(any());
+    }
+
+    @Test
+    void findHistoryThrowsNotFoundWhenOrderDoesNotExist() {
+        when(orderRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderService.findHistory(10L, principal(99L, Role.ADMIN)))
+                .isInstanceOf(OrderNotFoundException.class)
+                .hasMessage("Order not found");
+    }
+
+    private OrderStatusHistory historyEntry(Order order, OrderStatus from, OrderStatus to, User changedBy,
+            String changedAt) {
+        OrderStatusHistory entry = new OrderStatusHistory(order, from, to, changedBy);
+        entry.setChangedAt(Instant.parse(changedAt));
+        return entry;
     }
 
     private OrderRequest orderRequest() {
