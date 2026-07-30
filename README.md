@@ -74,7 +74,8 @@ Front-end em `http://localhost:3000`, API em `http://localhost:8080`.
 ## Autenticação
 
 JWT stateless. O login retorna um token Bearer que o front-end envia no header
-`Authorization` a cada requisição. Apenas `/auth/**` é público; todo o restante exige autenticação.
+`Authorization` a cada requisição. Rotas públicas: `/auth/**`, console H2, Swagger UI e
+`GET /actuator/health`; todo o restante exige autenticação.
 
 ## Endpoints principais
 
@@ -83,10 +84,13 @@ JWT stateless. O login retorna um token Bearer que o front-end envia no header
 | POST   | `/auth/register`          | público       | Cadastro (nome, e-mail, senha) |
 | POST   | `/auth/login`             | público       | Login, retorna token JWT |
 | POST   | `/orders`                 | CLIENT        | Cria pedido (cliente, itens, endereço) |
-| GET    | `/orders?status=`         | autenticado   | CLIENT vê os próprios; ADMIN vê todos |
+| GET    | `/orders?status=`         | autenticado   | CLIENT vê os próprios; ADMIN vê todos (filtro para ambos) |
 | GET    | `/orders/{id}`            | dono ou ADMIN | Busca pedido por ID |
 | PATCH  | `/orders/{id}/status`     | ADMIN         | Atualiza status (transições validadas) |
 | GET    | `/orders/{id}/history`    | dono ou ADMIN | Histórico de transições do pedido |
+
+Rota proibida para o papel → `403`; pedido de outro usuário ou inexistente → `404`
+(não revela existência). Contratos completos de request/response no [PLAN.md](PLAN.md).
 
 ## Máquina de estados do pedido
 
