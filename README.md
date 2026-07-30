@@ -5,8 +5,9 @@ Permite cadastro/login de usuários, criação de pedidos com itens e endereço 
 acompanhamento do ciclo de vida do pedido (`RECEBIDO` → `EM_PREPARO` → `SAIU_PARA_ENTREGA` →
 `ENTREGUE`, com opção de `CANCELADO`).
 
-> **Status do projeto**: planejamento concluído. A implementação segue o [PLAN.md](PLAN.md),
-> que detalha as tasks, critérios de aceite e commits esperados.
+> **Status do projeto**: implementação concluída — back-end, front-end e Docker entregues
+> conforme o [PLAN.md](PLAN.md) (tasks T01–T16, um commit por task). Back-end com 102 testes
+> passando e `jacoco:check` exigindo 100% de cobertura de linhas nos pacotes de negócio.
 
 ## Stack
 
@@ -46,6 +47,10 @@ API em `http://localhost:8080`. Console do H2 em `http://localhost:8080/h2-conso
 (JDBC URL: `jdbc:h2:file:./data/foodydb`). Documentação OpenAPI em
 `http://localhost:8080/swagger-ui.html`. Para resetar o banco: `rm -rf backend/data`.
 
+O primeiro start popula o banco (seed idempotente): os dois usuários da tabela abaixo e
+3 pedidos de exemplo em estados distintos (`RECEBIDO`, `EM_PREPARO`, `ENTREGUE`), já com
+histórico de transições. Reinícios não duplicam dados.
+
 ### Front-end
 
 ```bash
@@ -54,7 +59,8 @@ npm install
 npm run dev
 ```
 
-Aplicação em `http://localhost:5173`.
+Aplicação em `http://localhost:5173`. A URL da API vem de `VITE_API_URL`
+(default `http://localhost:8080`). Build de produção: `npm run build`.
 
 ### Docker (tudo de uma vez)
 
@@ -62,7 +68,11 @@ Aplicação em `http://localhost:5173`.
 docker compose up --build
 ```
 
-Front-end em `http://localhost:3000`, API em `http://localhost:8080`.
+Front-end em `http://localhost:3000`, API em `http://localhost:8080`. O front só sobe após a
+API ficar saudável (`/actuator/health`). O banco H2 fica no volume `foody-data` e sobrevive a
+`docker compose restart`/`down` (para zerar: `docker compose down -v`). Variáveis:
+`JWT_SECRET` (env do back-end) e `VITE_API_URL` (build arg do front — a URL que o **navegador**
+chama, default `http://localhost:8080`).
 
 ## Credenciais de exemplo (seed)
 
@@ -73,9 +83,10 @@ Front-end em `http://localhost:3000`, API em `http://localhost:8080`.
 
 ## Autenticação
 
-JWT stateless. O login retorna um token Bearer que o front-end envia no header
-`Authorization` a cada requisição. Rotas públicas: `/auth/**`, console H2, Swagger UI e
-`GET /actuator/health`; todo o restante exige autenticação.
+JWT stateless (HS256, expiração de 2h). O login retorna um token Bearer que o front-end envia
+no header `Authorization` a cada requisição. Rotas públicas: `/auth/**`, console H2, Swagger UI
+e `GET /actuator/health`; todo o restante exige autenticação. `401` e `403` seguem o mesmo
+contrato de erro JSON da API.
 
 ## Endpoints principais
 
@@ -102,8 +113,8 @@ Rota proibida para o papel → `403`; pedido de outro usuário ou inexistente �
 | ENTREGUE          | estado final (sem transições) |||||
 | CANCELADO         | estado final (sem transições) |||||
 
-Transição inválida retorna `422` com mensagem descritiva. Toda transição é registrada no
-histórico do pedido (rastreabilidade).
+Transição inválida (incluindo mesma origem/destino) retorna `422` com mensagem descritiva.
+Toda transição é registrada no histórico do pedido (rastreabilidade com autor e timestamp).
 
 ## Decisões técnicas
 
@@ -114,18 +125,31 @@ histórico do pedido (rastreabilidade).
   `order_status_history` (trilha de auditoria das transições).
 - **Máquina de estados explícita** com validação de transições: `ENTREGUE` e `CANCELADO` são finais.
 - **Roles**: `CLIENT` cria e acompanha os próprios pedidos; `ADMIN` visualiza todos e atualiza status.
-- **Commits**: Conventional Commits, em inglês, pequenos e frequentes.
+- **Total calculado no servidor** (`BigDecimal`, scale 2): o front nunca define preço final.
+- **Commits**: Conventional Commits, em inglês, pequenos e frequentes (um por task do plano).
 
 ## Testes
 
 ```bash
 cd backend
-./mvnw test                  # suíte completa
-./mvnw jacoco:report         # relatório em target/site/jacoco
+./mvnw verify                # suíte completa + jacoco:check (relatório em target/site/jacoco)
 ```
 
-Meta: 100% de cobertura de linhas nos pacotes de negócio (`service`, `controller`, `security`,
-máquina de estados), com exclusões justificadas (DTOs, entidades, configuração). Detalhes no PLAN.md.
+102 testes (unidade de services e máquina de estados, slices `@WebMvcTest`/`@DataJpaTest` e
+integração end-to-end com contexto real). O `jacoco:check` **falha o build** se a cobertura de
+linhas de `service`, `controller` e `security` (incluindo a máquina de estados) cair abaixo de
+100%. `dto`, `exception` e `config` também estão em 100%; entidades e `Application` ficam fora
+da regra (exclusões justificadas no PLAN.md). Front-end sem testes, conforme escopo do plano.
+
+## Checklist de entrega
+
+- [x] Endpoints do escopo implementados e documentados (tabela acima + Swagger UI)
+- [x] Roles `CLIENT`/`ADMIN` com matriz de autorização (403 por papel, 404 por ownership)
+- [x] Máquina de estados 5×5 validada (matriz completa coberta por testes parametrizados)
+- [x] Histórico de transições por pedido, com autor e timestamp
+- [x] Seed idempotente (2 usuários + 3 pedidos) verificado em restarts
+- [x] `docker-compose.yml` com os dois serviços, volume do banco e healthcheck
+- [x] Repositório público, histórico linear na `main` com Conventional Commits
 
 ## Licença
 

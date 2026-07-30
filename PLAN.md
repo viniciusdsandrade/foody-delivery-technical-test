@@ -197,7 +197,7 @@ Ordenado por `changedAt` asc (linha do tempo).
 
 ## Fase 0 — Fundação ✅
 
-### T00 — Planejamento (esta entrega)
+### T00 — Planejamento (esta entrega) ✅
 
 - **Arquivos**: `README.md`, `PLAN.md`
 - **Commits**: `docs: add README with project overview and run instructions`,
@@ -211,7 +211,7 @@ Ordenado por `changedAt` asc (linha do tempo).
 Pacote base: `com.foody.tracker` (`controller`, `service`, `repository`, `entity`, `dto`,
 `security`, `config`, `exception`).
 
-### T01 — Scaffold do projeto
+### T01 — Scaffold do projeto ✅
 
 - **Objetivo**: projeto Maven funcional com Java 25 e Spring Boot 4.
 - **Escopo**: `pom.xml` seguindo a tabela "Versões pinadas" (parent `spring-boot-starter-parent`
@@ -226,7 +226,7 @@ Pacote base: `com.foody.tracker` (`controller`, `service`, `repository`, `entity
 - **Validação**: `./mvnw spring-boot:run` sobe; `GET /actuator/health` retorna `UP`.
 - **Commits**: `chore: scaffold Spring Boot backend with Maven`
 
-### T02 — Modelo de domínio e persistência
+### T02 — Modelo de domínio e persistência ✅
 
 - **Objetivo**: entidades JPA e repositórios conforme "Modelo de dados".
 - **Escopo**: `User`, `Order`, `OrderItem`, `OrderStatusHistory`, enums `Role` e `OrderStatus`,
@@ -234,7 +234,7 @@ Pacote base: `com.foody.tracker` (`controller`, `service`, `repository`, `entity
 - **Validação**: schema gerado no H2 arquivo; `@DataJpaTest` cobrindo as queries customizadas.
 - **Commits**: `feat: add domain entities and repositories`
 
-### T03 — Autenticação JWT
+### T03 — Autenticação JWT ✅
 
 - **Objetivo**: registro, login e filtro JWT stateless.
 - **Escopo**: `AuthController` (`POST /auth/register`, `POST /auth/login`), `AuthService`
@@ -249,7 +249,7 @@ Pacote base: `com.foody.tracker` (`controller`, `service`, `repository`, `entity
   acesso a rota protegida sem token → 401.
 - **Commits**: `feat: add JWT authentication with register and login`
 
-### T04 — Criação e consulta de pedidos
+### T04 — Criação e consulta de pedidos ✅
 
 - **Objetivo**: `POST /orders`, `GET /orders` (com `?status=`), `GET /orders/{id}`.
 - **Escopo**: `OrderController`, `OrderService`, DTOs com Bean Validation conforme
@@ -260,7 +260,7 @@ Pacote base: `com.foody.tracker` (`controller`, `service`, `repository`, `entity
 - **Validação**: testes de unidade do `OrderService` e `@WebMvcTest` (happy path + 400 + 403 + 404).
 - **Commits**: `feat: add order creation and listing endpoints`
 
-### T05 — Máquina de estados e atualização de status
+### T05 — Máquina de estados e atualização de status ✅
 
 - **Objetivo**: `PATCH /orders/{id}/status` exclusivo de ADMIN, com transições validadas.
 - **Escopo**: `OrderStateMachine` (mapa de transições da tabela acima), uso no `OrderService`,
@@ -269,20 +269,20 @@ Pacote base: `com.foody.tracker` (`controller`, `service`, `repository`, `entity
   estados finais, 403 para CLIENT, status fora do enum → 400.
 - **Commits**: `feat: add order status state machine with validated transitions`
 
-### T06 — Histórico de status
+### T06 — Histórico de status ✅
 
 - **Objetivo**: `GET /orders/{id}/history` (dono ou ADMIN), ordenado por `changed_at`.
 - **Validação**: testes de service + controller, incluindo 404 para não-dono (conforme matriz de autorização).
 - **Commits**: `feat: add order status history endpoint`
 
-### T07 — Tratamento global de erros
+### T07 — Tratamento global de erros ✅
 
 - **Objetivo**: `@RestControllerAdvice` emitindo o contrato de erro para 400 (com
   `fieldErrors`), 401, 403, 404, 409 e 422.
 - **Validação**: testes de controller verificando payload e status de cada cenário.
 - **Commits**: `feat: add global exception handling with error contract`
 
-### T08 — Seed e documentação OpenAPI
+### T08 — Seed e documentação OpenAPI ✅
 
 - **Objetivo**: `CommandLineRunner` **idempotente** (só insere se `users` vazio — H2 em
   arquivo persiste entre execuções) com `admin@foody.com/admin123` (ADMIN),
@@ -291,7 +291,7 @@ Pacote base: `com.foody.tracker` (`controller`, `service`, `repository`, `entity
 - **Validação**: banco populado ao subir; reinício não duplica dados; Swagger lista os endpoints.
 - **Commits**: `chore: add seed data and OpenAPI documentation`
 
-### T09 — Cobertura de 100%
+### T09 — Cobertura de 100% ✅
 
 - **Objetivo**: JaCoCo com meta de 100% de linhas em `service`, `controller`, `security` e
   máquina de estados; exclusões justificadas (DTOs, entidades, `config`, `Application`).
@@ -304,33 +304,33 @@ Pacote base: `com.foody.tracker` (`controller`, `service`, `repository`, `entity
 
 Estrutura: `src/{pages,components,services,context,hooks,types}`.
 
-### T10 — Scaffold do front-end
+### T10 — Scaffold do front-end ✅
 
 - **Objetivo**: Vite + React 19 + TypeScript + Tailwind + React Router + axios.
 - **Escopo**: instância axios (`baseURL` via env, interceptor que anexa o Bearer token e
   redireciona ao login em 401), rotas base, layout.
 - **Commits**: `chore: scaffold React frontend with Vite and Tailwind`
 
-### T11 — Fluxo de autenticação
+### T11 — Fluxo de autenticação ✅
 
 - **Objetivo**: páginas Login e Register, `AuthContext` (token em `localStorage`), guards
   `PrivateRoute` e `AdminRoute`.
 - **Validação**: login redireciona para `/orders`; rota privada sem token volta para `/login`.
 - **Commits**: `feat: add login and registration flow`
 
-### T12 — Listagem e criação de pedidos
+### T12 — Listagem e criação de pedidos ✅
 
 - **Objetivo**: `/orders` (badge de status, filtro por status) e `/orders/new` (itens
   dinâmicos adicionar/remover, endereço, validações no form).
 - **Commits**: `feat: add orders list and order creation pages`
 
-### T13 — Detalhe do pedido com timeline e ações ADMIN
+### T13 — Detalhe do pedido com timeline e ações ADMIN ✅
 
 - **Objetivo**: `/orders/:id` com timeline do histórico de status e botões de transição
   (apenas os válidos, visíveis para ADMIN), incluindo cancelamento quando permitido.
 - **Commits**: `feat: add order detail with status timeline and admin actions`
 
-### T14 — Polimento de UX
+### T14 — Polimento de UX ✅
 
 - **Objetivo**: estados de loading/empty/error, formatação de data e moeda em pt-BR,
   feedback (toasts) em criar/atualizar/erro.
@@ -340,7 +340,7 @@ Estrutura: `src/{pages,components,services,context,hooks,types}`.
 
 ## Fase 3 — Entrega
 
-### T15 — Docker
+### T15 — Docker ✅
 
 - **Objetivo**: Dockerfile multi-stage do back-end (build Maven → runtime JRE 25) e do
   front-end (build Node → nginx) + `docker-compose.yml` com as duas imagens, rede interna,
@@ -351,7 +351,7 @@ Estrutura: `src/{pages,components,services,context,hooks,types}`.
   dados sobrevivem a `docker compose restart`.
 - **Commits**: `chore: add Dockerfiles and docker-compose`
 
-### T16 — Revisão final e entrega
+### T16 — Revisão final e entrega ✅
 
 - **Objetivo**: README revisado contra o comportamento real, histórico de commits limpo,
   checklist de entrega (endpoints, roles, máquina de estados, seed, docker-compose).
@@ -365,9 +365,9 @@ Estrutura: `src/{pages,components,services,context,hooks,types}`.
 | Fase | Tasks | Estimativa |
 |------|-------|-----------|
 | 0 — Fundação | T00 | concluída |
-| 1 — Back-end | T01–T09 | 6–8 h |
-| 2 — Front-end | T10–T14 | 4–5 h |
-| 3 — Entrega | T15–T16 | 1–2 h |
+| 1 — Back-end | T01–T09 | concluída |
+| 2 — Front-end | T10–T14 | concluída |
+| 3 — Entrega | T15–T16 | concluída |
 | **Total** | | **11–15 h** |
 
 ## Riscos e mitigações
