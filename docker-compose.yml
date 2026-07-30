@@ -1,0 +1,40 @@
+name: foody-tracker
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-foody-tracker-local-development-secret-key-change-me}
+    volumes:
+      - foody-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 40s
+    networks:
+      - foody
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Vite inlines this at build time; it is the URL the BROWSER calls,
+        # so it must stay host-reachable (not the internal service name).
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - foody
+
+volumes:
+  foody-data:
+
+networks:
+  foody:
