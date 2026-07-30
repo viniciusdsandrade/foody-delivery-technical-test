@@ -2,6 +2,7 @@ package com.foody.tracker.controller;
 
 import com.foody.tracker.dto.OrderRequest;
 import com.foody.tracker.dto.OrderResponse;
+import com.foody.tracker.dto.UpdateStatusRequest;
 import com.foody.tracker.entity.OrderStatus;
 import com.foody.tracker.security.AuthenticatedUser;
 import com.foody.tracker.service.OrderService;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -47,5 +49,12 @@ public class OrderController {
     public OrderResponse findById(@PathVariable Long id,
             @AuthenticationPrincipal AuthenticatedUser currentUser) {
         return orderService.findById(id, currentUser);
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public OrderResponse updateStatus(@PathVariable Long id, @Valid @RequestBody UpdateStatusRequest request,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return orderService.updateStatus(id, request.status(), currentUser);
     }
 }

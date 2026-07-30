@@ -2,6 +2,7 @@ package com.foody.tracker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -118,6 +119,56 @@ class SecurityIntegrationTest {
         mockMvc.perform(get("/orders/" + orderId).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.customerName").value("Ana Souza"));
+    }
+
+    @Test
+    void clientCannotUpdateOrderStatusAndGetsForbiddenContract() throws Exception {
+        String token = registerAndLogin("carol@example.com");
+
+        mockMvc.perform(patch("/orders/1/status")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"EM_PREPARO\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value("Access denied"))
+                .andExpect(jsonPath("$.path").value("/orders/1/status"))
+                .andExpect(jsonPath("$.fieldErrors").doesNotExist());
+    }
+
+    @Test
+    void adminUpdatesOrderStatusFollowingTheStateMachine() throws Exception {
+        String clientToken = registerAndLogin("diego@example.com");
+        String created = mockMvc.perform(post("/orders")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + clientToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_ORDER_BODY))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Number orderId = JsonPath.read(created, "$.id");
+
+        userRepository.save(new User("Admin Two", "admin2@example.com",
+                passwordEncoder.encode("admin123"), Role.ADMIN));
+        String adminToken = login("admin2@example.com", "admin123");
+
+        mockMvc.perform(patch("/orders/" + orderId + "/status")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"EM_PREPARO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("EM_PREPARO"));
+
+        mockMvc.perform(patch("/orders/" + orderId + "/status")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"ENTREGUE\"}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.status").value(422))
+                .andExpect(jsonPath("$.error").value("Unprocessable Content"))
+                .andExpect(jsonPath("$.message").value("Cannot transition from EM_PREPARO to ENTREGUE"))
+                .andExpect(jsonPath("$.path").value("/orders/" + orderId + "/status"));
     }
 
     @Test

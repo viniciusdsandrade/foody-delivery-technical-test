@@ -3,6 +3,7 @@ package com.foody.tracker.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -10,12 +11,12 @@ import com.foody.tracker.dto.AddressDto;
 import com.foody.tracker.dto.OrderItemRequest;
 import com.foody.tracker.dto.OrderRequest;
 import com.foody.tracker.dto.OrderResponse;
-import com.foody.tracker.entity.Address;
 import com.foody.tracker.entity.Order;
 import com.foody.tracker.entity.OrderStatus;
 import com.foody.tracker.entity.OrderStatusHistory;
 import com.foody.tracker.entity.Role;
 import com.foody.tracker.entity.User;
+import com.foody.tracker.exception.InvalidStatusTransitionException;
 import com.foody.tracker.exception.OrderNotFoundException;
 import com.foody.tracker.repository.OrderRepository;
 import com.foody.tracker.repository.OrderStatusHistoryRepository;
@@ -24,10 +25,10 @@ import com.foody.tracker.security.AuthenticatedUser;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -44,8 +45,12 @@ class OrderServiceTest {
     @Mock
     private UserRepository userRepository;
 
-    @InjectMocks
     private OrderService orderService;
+
+    @BeforeEach
+    void setUp() {
+        orderService = new OrderService(orderRepository, historyRepository, userRepository, new OrderStateMachine());
+    }
 
     @Test
     void createPersistsOrderWithServerCalculatedTotalAndInitialHistory() {
@@ -160,6 +165,46 @@ class OrderServiceTest {
         when(orderRepository.findById(10L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.findById(10L, principal(99L, Role.ADMIN)))
+                .isInstanceOf(OrderNotFoundException.class)
+                .hasMessage("Order not found");
+    }
+
+    @Test
+    void updateStatusAppliesValidTransitionAndRecordsHistory() {
+        User admin = user(99L, Role.ADMIN);
+        Order order = orderOwnedBy(user(1L, Role.CLIENT));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        when(userRepository.getReferenceById(99L)).thenReturn(admin);
+
+        OrderResponse response = orderService.updateStatus(10L, OrderStatus.EM_PREPARO, new AuthenticatedUser(admin));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.EM_PREPARO);
+        ArgumentCaptor<OrderStatusHistory> captor = ArgumentCaptor.forClass(OrderStatusHistory.class);
+        verify(historyRepository).save(captor.capture());
+        OrderStatusHistory history = captor.getValue();
+        assertThat(history.getOrder()).isSameAs(order);
+        assertThat(history.getFromStatus()).isEqualTo(OrderStatus.RECEBIDO);
+        assertThat(history.getToStatus()).isEqualTo(OrderStatus.EM_PREPARO);
+        assertThat(history.getChangedBy()).isSameAs(admin);
+        assertThat(response.status()).isEqualTo(OrderStatus.EM_PREPARO);
+    }
+
+    @Test
+    void updateStatusRejectsInvalidTransition() {
+        Order order = orderOwnedBy(user(1L, Role.CLIENT));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> orderService.updateStatus(10L, OrderStatus.ENTREGUE, principal(99L, Role.ADMIN)))
+                .isInstanceOf(InvalidStatusTransitionException.class)
+                .hasMessage("Cannot transition from RECEBIDO to ENTREGUE");
+        verify(historyRepository, never()).save(any());
+    }
+
+    @Test
+    void updateStatusThrowsNotFoundWhenOrderDoesNotExist() {
+        when(orderRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderService.updateStatus(10L, OrderStatus.EM_PREPARO, principal(99L, Role.ADMIN)))
                 .isInstanceOf(OrderNotFoundException.class)
                 .hasMessage("Order not found");
     }

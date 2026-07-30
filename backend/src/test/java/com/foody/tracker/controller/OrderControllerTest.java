@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -16,6 +17,7 @@ import com.foody.tracker.dto.OrderResponse;
 import com.foody.tracker.entity.OrderStatus;
 import com.foody.tracker.entity.Role;
 import com.foody.tracker.entity.User;
+import com.foody.tracker.exception.InvalidStatusTransitionException;
 import com.foody.tracker.exception.OrderNotFoundException;
 import com.foody.tracker.security.AuthenticatedUser;
 import com.foody.tracker.service.OrderService;
@@ -184,6 +186,63 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.message").value("Order not found"))
                 .andExpect(jsonPath("$.path").value("/orders/99"))
                 .andExpect(jsonPath("$.fieldErrors").doesNotExist());
+    }
+
+    @Test
+    void updateStatusReturnsUpdatedOrder() throws Exception {
+        OrderResponse updated = new OrderResponse(1L, "Ana Souza", OrderStatus.EM_PREPARO, new BigDecimal("59.80"),
+                new AddressDto("Rua das Flores", "123", "ap 12", "Centro", "São Paulo", "SP", "01001-000"),
+                List.of(), Instant.parse("2026-07-30T12:00:00Z"), Instant.parse("2026-07-30T12:05:00Z"));
+        when(orderService.updateStatus(eq(1L), eq(OrderStatus.EM_PREPARO), any())).thenReturn(updated);
+
+        mockMvc.perform(patch("/orders/1/status")
+                        .with(authentication(principal(99L, Role.ADMIN)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"EM_PREPARO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.status").value("EM_PREPARO"));
+    }
+
+    @Test
+    void updateStatusReturnsUnprocessableForInvalidTransition() throws Exception {
+        when(orderService.updateStatus(eq(1L), eq(OrderStatus.ENTREGUE), any()))
+                .thenThrow(new InvalidStatusTransitionException(OrderStatus.RECEBIDO, OrderStatus.ENTREGUE));
+
+        mockMvc.perform(patch("/orders/1/status")
+                        .with(authentication(principal(99L, Role.ADMIN)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"ENTREGUE\"}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(422))
+                .andExpect(jsonPath("$.error").value("Unprocessable Content"))
+                .andExpect(jsonPath("$.message").value("Cannot transition from RECEBIDO to ENTREGUE"))
+                .andExpect(jsonPath("$.path").value("/orders/1/status"))
+                .andExpect(jsonPath("$.fieldErrors").doesNotExist());
+    }
+
+    @Test
+    void updateStatusReturnsBadRequestForUnknownStatusValue() throws Exception {
+        mockMvc.perform(patch("/orders/1/status")
+                        .with(authentication(principal(99L, Role.ADMIN)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"BOGUS\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Malformed request body"))
+                .andExpect(jsonPath("$.path").value("/orders/1/status"));
+    }
+
+    @Test
+    void updateStatusReturnsBadRequestForMissingStatus() throws Exception {
+        mockMvc.perform(patch("/orders/1/status")
+                        .with(authentication(principal(99L, Role.ADMIN)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[*].field").value(Matchers.hasItem("status")));
     }
 
     private OrderResponse orderResponse() {

@@ -25,12 +25,14 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderStatusHistoryRepository historyRepository;
     private final UserRepository userRepository;
+    private final OrderStateMachine stateMachine;
 
     public OrderService(OrderRepository orderRepository, OrderStatusHistoryRepository historyRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository, OrderStateMachine stateMachine) {
         this.orderRepository = orderRepository;
         this.historyRepository = historyRepository;
         this.userRepository = userRepository;
+        this.stateMachine = stateMachine;
     }
 
     @Transactional
@@ -61,11 +63,27 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public OrderResponse findById(Long id, AuthenticatedUser currentUser) {
+        Order order = findVisibleOrder(id, currentUser);
+        return OrderResponse.from(order);
+    }
+
+    @Transactional
+    public OrderResponse updateStatus(Long id, OrderStatus newStatus, AuthenticatedUser currentUser) {
+        Order order = orderRepository.findById(id).orElseThrow(OrderNotFoundException::new);
+        OrderStatus previous = order.getStatus();
+        stateMachine.validateTransition(previous, newStatus);
+        order.setStatus(newStatus);
+        User changedBy = userRepository.getReferenceById(currentUser.getId());
+        historyRepository.save(new OrderStatusHistory(order, previous, newStatus, changedBy));
+        return OrderResponse.from(order);
+    }
+
+    private Order findVisibleOrder(Long id, AuthenticatedUser currentUser) {
         Order order = orderRepository.findById(id).orElseThrow(OrderNotFoundException::new);
         if (currentUser.getRole() != Role.ADMIN && !order.getUser().getId().equals(currentUser.getId())) {
             throw new OrderNotFoundException();
         }
-        return OrderResponse.from(order);
+        return order;
     }
 
     private BigDecimal calculateTotal(List<OrderItemRequest> items) {
