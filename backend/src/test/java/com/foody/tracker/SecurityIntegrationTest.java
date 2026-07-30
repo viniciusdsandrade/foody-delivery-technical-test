@@ -6,6 +6,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.foody.tracker.entity.Role;
+import com.foody.tracker.entity.User;
+import com.foody.tracker.repository.UserRepository;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK, properties = {
@@ -22,8 +26,27 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class SecurityIntegrationTest {
 
+    private static final String VALID_ORDER_BODY = """
+            {
+              "customerName": "Ana Souza",
+              "address": {
+                "street": "Rua das Flores", "number": "123", "complement": "ap 12",
+                "district": "Centro", "city": "São Paulo", "state": "SP", "zipCode": "01001-000"
+              },
+              "items": [
+                {"name": "Pizza Margherita", "quantity": 1, "unitPrice": 49.90},
+                {"name": "Refrigerante", "quantity": 2, "unitPrice": 4.95}
+              ]
+            }""";
+
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Test
     void protectedRouteWithoutTokenReturnsUnauthorizedErrorContract() throws Exception {
@@ -46,24 +69,55 @@ class SecurityIntegrationTest {
 
     @Test
     void registeredUserReachesProtectedRouteWithIssuedToken() throws Exception {
-        mockMvc.perform(post("/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"name":"Ana Souza","email":"ana@example.com","password":"secret1"}"""))
-                .andExpect(status().isCreated());
+        String token = registerAndLogin("ana@example.com");
 
-        String body = mockMvc.perform(post("/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"email":"ana@example.com","password":"secret1"}"""))
+        mockMvc.perform(get("/orders").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    void adminCannotCreateOrdersAndGetsForbiddenContract() throws Exception {
+        userRepository.save(new User("Admin", "admin@example.com",
+                passwordEncoder.encode("admin123"), Role.ADMIN));
+        String token = login("admin@example.com", "admin123");
+
+        mockMvc.perform(post("/orders")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_ORDER_BODY))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value("Access denied"))
+                .andExpect(jsonPath("$.path").value("/orders"))
+                .andExpect(jsonPath("$.fieldErrors").doesNotExist());
+    }
+
+    @Test
+    void clientCreatesAndReadsOwnOrderEndToEnd() throws Exception {
+        String token = registerAndLogin("bia@example.com");
+
+        String created = mockMvc.perform(post("/orders")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_ORDER_BODY))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("RECEBIDO"))
+                .andExpect(jsonPath("$.total").value(59.8))
+                .andExpect(jsonPath("$.items.length()").value(2))
                 .andReturn().getResponse().getContentAsString();
-        String token = JsonPath.read(body, "$.token");
+        Number orderId = JsonPath.read(created, "$.id");
 
-        int status = mockMvc.perform(get("/orders").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-                .andReturn().getResponse().getStatus();
+        mockMvc.perform(get("/orders").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(orderId.longValue()));
 
-        assertThat(status).isNotEqualTo(401);
+        mockMvc.perform(get("/orders/" + orderId).header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerName").value("Ana Souza"));
     }
 
     @Test
@@ -77,5 +131,24 @@ class SecurityIntegrationTest {
                 .andReturn().getResponse().getStatus();
 
         assertThat(loginStatus).isEqualTo(400);
+    }
+
+    private String registerAndLogin(String email) throws Exception {
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Ana Souza","email":"%s","password":"secret1"}""".formatted(email)))
+                .andExpect(status().isCreated());
+        return login(email, "secret1");
+    }
+
+    private String login(String email, String password) throws Exception {
+        String body = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"%s"}""".formatted(email, password)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return JsonPath.read(body, "$.token");
     }
 }
