@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useToast } from '../hooks/useToast';
 import { createOrder } from '../services/orderService';
 import type { ApiError } from '../types';
 import { formatCurrency } from '../utils/format';
@@ -36,6 +37,7 @@ function describeError(err: unknown): string {
 
 export default function NewOrderPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [customerName, setCustomerName] = useState('');
   const [address, setAddress] = useState({
     street: '',
@@ -99,9 +101,10 @@ export default function NewOrderPage() {
           unitPrice: parsePrice(item.unitPrice),
         })),
       });
+      toast.success(`Pedido #${order.id} criado com sucesso!`);
       navigate(`/orders/${order.id}`);
     } catch (err) {
-      setError(describeError(err));
+      toast.error(describeError(err));
     } finally {
       setSubmitting(false);
     }

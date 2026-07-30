@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import { errorMessage } from '../services/apiError';
 import { getOrder, getOrderHistory, updateOrderStatus } from '../services/orderService';
 import type { Order, OrderStatus, StatusHistoryEntry } from '../types';
@@ -20,10 +21,10 @@ export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const orderId = Number(id);
   const { isAdmin } = useAuth();
+  const toast = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   const [history, setHistory] = useState<StatusHistoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<OrderStatus | null>(null);
 
   const load = useCallback(async () => {
@@ -50,14 +51,14 @@ export default function OrderDetailPage() {
     if (status === 'CANCELADO' && !window.confirm('Tem certeza que deseja cancelar este pedido?')) {
       return;
     }
-    setActionError(null);
     setUpdating(status);
     try {
       const updated = await updateOrderStatus(orderId, status);
       setOrder(updated);
       setHistory(await getOrderHistory(orderId));
+      toast.success(`Status atualizado para "${ORDER_STATUS_LABELS[status]}".`);
     } catch (err) {
-      setActionError(errorMessage(err, 'Não foi possível atualizar o status.'));
+      toast.error(errorMessage(err, 'Não foi possível atualizar o status.'));
     } finally {
       setUpdating(null);
     }
@@ -118,9 +119,6 @@ export default function OrderDetailPage() {
               </button>
             ))}
           </div>
-        )}
-        {actionError && (
-          <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</div>
         )}
       </section>
 
