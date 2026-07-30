@@ -247,6 +247,17 @@ class OrderControllerTest {
     }
 
     @Test
+    void unmappedPathReturnsNotFoundContract() throws Exception {
+        mockMvc.perform(get("/does-not-exist").with(authentication(principal(1L, Role.CLIENT))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Resource not found"))
+                .andExpect(jsonPath("$.path").value("/does-not-exist"));
+    }
+
+    @Test
     void findHistoryReturnsTimeline() throws Exception {
         StatusHistoryEntry created = new StatusHistoryEntry(null, OrderStatus.RECEBIDO,
                 new StatusHistoryEntry.ChangedByRef(1L, "Ana Souza"), Instant.parse("2026-07-30T12:00:00Z"));
