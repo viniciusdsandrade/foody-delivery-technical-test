@@ -44,7 +44,7 @@ cd backend
 
 API em `http://localhost:8080`. Console do H2 em `http://localhost:8080/h2-console`
 (JDBC URL: `jdbc:h2:file:./data/foodydb`). Documentação OpenAPI em
-`http://localhost:8080/swagger-ui.html`.
+`http://localhost:8080/swagger-ui.html`. Para resetar o banco: `rm -rf backend/data`.
 
 ### Front-end
 

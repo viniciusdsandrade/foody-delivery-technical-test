@@ -219,8 +219,10 @@ Pacote base: `com.foody.tracker` (`controller`, `service`, `repository`, `entity
   `jjwt-impl`/`jjwt-jackson` runtime; `springdoc-openapi-starter-webmvc-ui` 3.0.3;
   `jacoco-maven-plugin` 0.8.14; `maven.compiler.release` 25), Maven wrapper,
   `application.yaml` (H2 arquivo `./data/foodydb`, H2 console, porta 8080,
-  `jwt.secret`/`jwt.expiration` via env com default dev — secret default com ≥ 32 bytes),
-  `.gitignore` Java/Maven (incluindo `data/`).
+  `jwt.secret`/`jwt.expiration-seconds` via env com default dev — secret default com ≥ 32 bytes,
+  tratado como bytes UTF-8 e não Base64), dependência `spring-boot-h2console` (no Boot 4 o
+  console H2 saiu do autoconfigure para módulo próprio), `.gitignore` Java/Maven
+  (incluindo `data/`).
 - **Validação**: `./mvnw spring-boot:run` sobe; `GET /actuator/health` retorna `UP`.
 - **Commits**: `chore: scaffold Spring Boot backend with Maven`
 
