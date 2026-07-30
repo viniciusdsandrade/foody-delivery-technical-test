@@ -4,9 +4,6 @@ server:
 spring:
   application:
     name: tracker
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
   datasource:
     url: jdbc:h2:file:./data/foodydb
     driver-class-name: org.h2.Driver
