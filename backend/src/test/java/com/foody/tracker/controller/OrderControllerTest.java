@@ -30,6 +30,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
@@ -244,6 +246,80 @@ class OrderControllerTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[*].field").value(Matchers.hasItem("status")));
+    }
+
+    @Test
+    void createReturnsConflictContractWhenDataIntegrityViolationEscapes() throws Exception {
+        when(orderService.create(any(), any())).thenThrow(new DataIntegrityViolationException("duplicate"));
+
+        mockMvc.perform(post("/orders")
+                        .with(authentication(principal(1L, Role.CLIENT)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_BODY))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("Data integrity violation"))
+                .andExpect(jsonPath("$.path").value("/orders"))
+                .andExpect(jsonPath("$.fieldErrors").doesNotExist());
+    }
+
+    @Test
+    void updateStatusReturnsConflictContractOnConcurrentModification() throws Exception {
+        when(orderService.updateStatus(eq(1L), eq(OrderStatus.EM_PREPARO), any()))
+                .thenThrow(new OptimisticLockingFailureException("stale version"));
+
+        mockMvc.perform(patch("/orders/1/status")
+                        .with(authentication(principal(99L, Role.ADMIN)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"EM_PREPARO\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("Order was modified concurrently, retry the operation"))
+                .andExpect(jsonPath("$.path").value("/orders/1/status"))
+                .andExpect(jsonPath("$.fieldErrors").doesNotExist());
+    }
+
+    @Test
+    void listReturnsInternalErrorContractForUnexpectedFailure() throws Exception {
+        when(orderService.list(any(), any())).thenThrow(new RuntimeException("boom"));
+
+        mockMvc.perform(get("/orders").with(authentication(principal(1L, Role.CLIENT))))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.error").value("Internal Server Error"))
+                .andExpect(jsonPath("$.message").value("Unexpected internal error"))
+                .andExpect(jsonPath("$.path").value("/orders"))
+                .andExpect(jsonPath("$.fieldErrors").doesNotExist());
+    }
+
+    @Test
+    void createReturnsUnsupportedMediaTypeContractForWrongContentType() throws Exception {
+        mockMvc.perform(post("/orders")
+                        .with(authentication(principal(1L, Role.CLIENT)))
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not json"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.status").value(415))
+                .andExpect(jsonPath("$.error").value("Unsupported Media Type"))
+                .andExpect(jsonPath("$.message").value("Unsupported media type"))
+                .andExpect(jsonPath("$.path").value("/orders"))
+                .andExpect(jsonPath("$.fieldErrors").doesNotExist());
+    }
+
+    @Test
+    void listReturnsNotAcceptableForUnsupportedAcceptHeader() throws Exception {
+        when(orderService.list(any(), any())).thenReturn(List.of());
+
+        // No JSON body assertions: the client asked for XML, so the catch-all
+        // rethrows and the default resolver answers with a bare 406.
+        mockMvc.perform(get("/orders")
+                        .with(authentication(principal(1L, Role.CLIENT)))
+                        .accept(MediaType.APPLICATION_XML))
+                .andExpect(status().isNotAcceptable());
     }
 
     @Test

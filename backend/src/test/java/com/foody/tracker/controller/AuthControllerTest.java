@@ -2,6 +2,7 @@ package com.foody.tracker.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -61,6 +62,34 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.path").value("/auth/register"))
                 .andExpect(jsonPath("$.fieldErrors[*].field")
                         .value(Matchers.containsInAnyOrder("name", "email", "password")));
+    }
+
+    @Test
+    void registerRejectsPasswordAboveSeventyTwoBytes() throws Exception {
+        // 40 chars, 80 bytes in UTF-8: passes @Size, must fail @MaxBytes —
+        // BCrypt would throw on encode and turn this into a 500 otherwise.
+        String multiBytePassword = "ç".repeat(40);
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Ana Souza","email":"ana@example.com","password":"%s"}"""
+                                .formatted(multiBytePassword)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation failed"))
+                .andExpect(jsonPath("$.fieldErrors[*].field").value(Matchers.hasItem("password")));
+    }
+
+    @Test
+    void wrongHttpMethodReturnsMethodNotAllowedContract() throws Exception {
+        mockMvc.perform(get("/auth/login"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(405))
+                .andExpect(jsonPath("$.error").value("Method Not Allowed"))
+                .andExpect(jsonPath("$.message").value("Method not allowed"))
+                .andExpect(jsonPath("$.path").value("/auth/login"))
+                .andExpect(jsonPath("$.fieldErrors").doesNotExist());
     }
 
     @Test
