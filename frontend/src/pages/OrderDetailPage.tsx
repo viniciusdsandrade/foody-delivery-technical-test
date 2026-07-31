@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 import StatusBadge from '../components/StatusBadge';
@@ -27,25 +27,36 @@ export default function OrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<OrderStatus | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const [orderData, historyData] = await Promise.all([getOrder(orderId), getOrderHistory(orderId)]);
-      setOrder(orderData);
-      setHistory(historyData);
-    } catch (err) {
-      setError(
-        axios.isAxiosError(err) && err.response?.status === 404
-          ? 'Pedido não encontrado.'
-          : errorMessage(err, 'Não foi possível carregar o pedido.'),
-      );
-    }
-  }, [orderId]);
-
   useEffect(() => {
+    // Guarda contra resposta obsoleta: ao navegar para outro pedido antes da
+    // resposta chegar, o closure antigo não pode escrever estado (renderizaria
+    // o pedido errado e derivaria botões de transição do status errado).
+    let cancelled = false;
     setOrder(null);
+    setHistory([]);
     setError(null);
-    void load();
-  }, [load]);
+    Promise.all([getOrder(orderId), getOrderHistory(orderId)])
+      .then(([orderData, historyData]) => {
+        if (cancelled) {
+          return;
+        }
+        setOrder(orderData);
+        setHistory(historyData);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        setError(
+          axios.isAxiosError(err) && err.response?.status === 404
+            ? 'Pedido não encontrado.'
+            : errorMessage(err, 'Não foi possível carregar o pedido.'),
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId]);
 
   async function handleTransition(status: OrderStatus) {
     if (status === 'CANCELADO' && !window.confirm('Tem certeza que deseja cancelar este pedido?')) {
@@ -58,7 +69,8 @@ export default function OrderDetailPage() {
       setHistory(await getOrderHistory(orderId));
       toast.success(`Status atualizado para "${ORDER_STATUS_LABELS[status]}".`);
     } catch (err) {
-      toast.error(errorMessage(err, 'Não foi possível atualizar o status.'));
+      toast.error(errorMessage(err, 'Não foi possível atualizar o status.',
+        { 422: 'Esta mudança de status não é permitida.' }));
     } finally {
       setUpdating(null);
     }

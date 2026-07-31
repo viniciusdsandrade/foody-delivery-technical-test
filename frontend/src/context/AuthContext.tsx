@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from '../services/api';
+import { SESSION_EXPIRED_KEY, TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from '../services/api';
 import * as authService from '../services/authService';
 import type { User } from '../types';
 
@@ -28,8 +28,39 @@ function readStoredUser(): User | null {
   }
 }
 
+// Decodifica o claim `exp` sem verificar assinatura (o servidor faz isso);
+// aqui só evitamos renderizar uma sessão já morta e disparar 401 em cascata.
+function tokenExpired(token: string): boolean {
+  const payload = token.split('.')[1];
+  if (!payload) {
+    return true;
+  }
+  try {
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))) as { exp?: number };
+    return typeof decoded.exp === 'number' && decoded.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
+function readValidToken(): string | null {
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!token) {
+    return null;
+  }
+  if (tokenExpired(token)) {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(USER_STORAGE_KEY);
+    // Mesmo aviso do caminho via interceptor 401; operações idempotentes,
+    // seguras num initializer (o LoginPage consome o flag em effect).
+    sessionStorage.setItem(SESSION_EXPIRED_KEY, '1');
+    return null;
+  }
+  return token;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_STORAGE_KEY));
+  const [token, setToken] = useState<string | null>(readValidToken);
   const [user, setUser] = useState<User | null>(() =>
     localStorage.getItem(TOKEN_STORAGE_KEY) ? readStoredUser() : null);
 

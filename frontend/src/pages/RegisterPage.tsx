@@ -24,7 +24,8 @@ export default function RegisterPage() {
       await register(name, email, password);
       navigate('/orders', { replace: true });
     } catch (err) {
-      setError(errorMessage(err, 'Não foi possível criar a conta. Tente novamente.'));
+      setError(errorMessage(err, 'Não foi possível criar a conta. Tente novamente.',
+        { 409: 'Este e-mail já está em uso.' }));
     } finally {
       setSubmitting(false);
     }
@@ -49,6 +50,7 @@ export default function RegisterPage() {
               id="name"
               type="text"
               required
+              maxLength={120}
               autoComplete="name"
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -63,6 +65,7 @@ export default function RegisterPage() {
               id="email"
               type="email"
               required
+              maxLength={180}
               autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
@@ -78,6 +81,7 @@ export default function RegisterPage() {
               type="password"
               required
               minLength={6}
+              maxLength={72}
               autoComplete="new-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}

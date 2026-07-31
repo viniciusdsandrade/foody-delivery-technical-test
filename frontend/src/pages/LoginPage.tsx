@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { SESSION_EXPIRED_KEY } from '../services/api';
 import { errorMessage } from '../services/apiError';
 
 export default function LoginPage() {
@@ -10,6 +11,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  // Consumo do flag em effect (não no initializer): render precisa ser puro e
+  // um render descartado não pode engolir o aviso antes de ele aparecer.
+  useEffect(() => {
+    if (sessionStorage.getItem(SESSION_EXPIRED_KEY) === '1') {
+      sessionStorage.removeItem(SESSION_EXPIRED_KEY);
+      setSessionExpired(true);
+    }
+  }, []);
 
   if (isAuthenticated) {
     return <Navigate to="/orders" replace />;
@@ -23,7 +34,8 @@ export default function LoginPage() {
       await login(email, password);
       navigate('/orders', { replace: true });
     } catch (err) {
-      setError(errorMessage(err, 'Não foi possível entrar. Tente novamente.'));
+      setError(errorMessage(err, 'Não foi possível entrar. Tente novamente.',
+        { 401: 'E-mail ou senha inválidos.' }));
     } finally {
       setSubmitting(false);
     }
@@ -35,8 +47,14 @@ export default function LoginPage() {
         <h1 className="mb-1 text-2xl font-bold text-orange-600">Foody Tracker</h1>
         <p className="mb-6 text-sm text-slate-500">Entre para acompanhar seus pedidos</p>
 
+        {sessionExpired && !error && (
+          <div role="alert" className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Sua sessão expirou. Entre novamente.
+          </div>
+        )}
+
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+          <div role="alert" className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">

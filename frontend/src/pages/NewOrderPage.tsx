@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToast } from '../hooks/useToast';
+import { errorMessage } from '../services/apiError';
 import { createOrder } from '../services/orderService';
 import type { ApiError } from '../types';
 import { formatCurrency } from '../utils/format';
@@ -26,13 +27,10 @@ function describeError(err: unknown): string {
   if (axios.isAxiosError(err) && err.response?.data) {
     const data = err.response.data as ApiError;
     if (data.fieldErrors?.length) {
-      return data.fieldErrors.map((fieldError) => `${fieldError.field}: ${fieldError.message}`).join('; ');
-    }
-    if (data.message) {
-      return data.message;
+      return 'O servidor recusou alguns campos. Revise nome, itens (quantidade e preço) e endereço.';
     }
   }
-  return 'Não foi possível criar o pedido. Tente novamente.';
+  return errorMessage(err, 'Não foi possível criar o pedido. Tente novamente.');
 }
 
 export default function NewOrderPage() {
@@ -133,6 +131,7 @@ export default function NewOrderPage() {
             id="customerName"
             type="text"
             required
+            maxLength={120}
             value={customerName}
             onChange={(event) => setCustomerName(event.target.value)}
             className={inputClass}
@@ -144,29 +143,29 @@ export default function NewOrderPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label htmlFor="street" className={labelClass}>Rua</label>
-              <input id="street" type="text" required value={address.street}
+              <input id="street" type="text" required maxLength={120} value={address.street}
                 onChange={(event) => updateAddress('street', event.target.value)} className={inputClass} />
             </div>
             <div>
               <label htmlFor="number" className={labelClass}>Número</label>
-              <input id="number" type="text" required value={address.number}
+              <input id="number" type="text" required maxLength={20} value={address.number}
                 onChange={(event) => updateAddress('number', event.target.value)} className={inputClass} />
             </div>
             <div>
               <label htmlFor="complement" className={labelClass}>
                 Complemento <span className="font-normal text-slate-400">(opcional)</span>
               </label>
-              <input id="complement" type="text" value={address.complement}
+              <input id="complement" type="text" maxLength={120} value={address.complement}
                 onChange={(event) => updateAddress('complement', event.target.value)} className={inputClass} />
             </div>
             <div>
               <label htmlFor="district" className={labelClass}>Bairro</label>
-              <input id="district" type="text" required value={address.district}
+              <input id="district" type="text" required maxLength={120} value={address.district}
                 onChange={(event) => updateAddress('district', event.target.value)} className={inputClass} />
             </div>
             <div>
               <label htmlFor="city" className={labelClass}>Cidade</label>
-              <input id="city" type="text" required value={address.city}
+              <input id="city" type="text" required maxLength={120} value={address.city}
                 onChange={(event) => updateAddress('city', event.target.value)} className={inputClass} />
             </div>
             <div>
@@ -176,7 +175,7 @@ export default function NewOrderPage() {
             </div>
             <div>
               <label htmlFor="zipCode" className={labelClass}>CEP</label>
-              <input id="zipCode" type="text" required placeholder="00000-000" value={address.zipCode}
+              <input id="zipCode" type="text" required maxLength={20} placeholder="00000-000" value={address.zipCode}
                 onChange={(event) => updateAddress('zipCode', event.target.value)} className={inputClass} />
             </div>
           </div>
@@ -188,7 +187,8 @@ export default function NewOrderPage() {
             <button
               type="button"
               onClick={addItem}
-              className="rounded-lg border border-orange-600 px-3 py-1 text-sm font-medium text-orange-600 transition hover:bg-orange-50"
+              disabled={items.length >= 100}
+              className="rounded-lg border border-orange-600 px-3 py-1 text-sm font-medium text-orange-600 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               + Adicionar item
             </button>
@@ -198,18 +198,18 @@ export default function NewOrderPage() {
               <div key={index} className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 p-3">
                 <div className="min-w-40 flex-1">
                   <label htmlFor={`item-name-${index}`} className={labelClass}>Item</label>
-                  <input id={`item-name-${index}`} type="text" required value={item.name}
+                  <input id={`item-name-${index}`} type="text" required maxLength={120} value={item.name}
                     onChange={(event) => updateItem(index, { name: event.target.value })} className={inputClass} />
                 </div>
                 <div className="w-24">
                   <label htmlFor={`item-quantity-${index}`} className={labelClass}>Qtd.</label>
-                  <input id={`item-quantity-${index}`} type="number" required min={1} step={1} value={item.quantity}
+                  <input id={`item-quantity-${index}`} type="number" required min={1} max={1000} step={1} value={item.quantity}
                     onChange={(event) => updateItem(index, { quantity: event.target.value })} className={inputClass} />
                 </div>
                 <div className="w-32">
                   <label htmlFor={`item-price-${index}`} className={labelClass}>Preço unitário</label>
                   <input id={`item-price-${index}`} type="text" required inputMode="decimal" placeholder="0,00"
-                    value={item.unitPrice}
+                    maxLength={9} value={item.unitPrice}
                     onChange={(event) => updateItem(index, { unitPrice: event.target.value })} className={inputClass} />
                 </div>
                 <button
