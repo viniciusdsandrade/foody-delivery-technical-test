@@ -38,7 +38,7 @@ export default function RegisterPage() {
         <p className="mb-6 text-sm text-slate-500">Crie sua conta para fazer pedidos</p>
 
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+          <div role="alert" className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">

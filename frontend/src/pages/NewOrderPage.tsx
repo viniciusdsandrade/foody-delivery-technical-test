@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToast } from '../hooks/useToast';
@@ -8,19 +8,32 @@ import type { ApiError } from '../types';
 import { formatCurrency } from '../utils/format';
 
 interface ItemForm {
+  id: number;
   name: string;
   quantity: string;
   unitPrice: string;
 }
 
-const emptyItem: ItemForm = { name: '', quantity: '1', unitPrice: '' };
+function makeItem(id: number): ItemForm {
+  return { id, name: '', quantity: '1', unitPrice: '' };
+}
 
 const inputClass =
   'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200';
 const labelClass = 'mb-1 block text-sm font-medium text-slate-700';
 
 function parsePrice(raw: string): number {
-  return Number(raw.replace(',', '.'));
+  const trimmed = raw.trim();
+  // Com vírgula decimal (pt-BR), pontos são separador de milhar: "1.500,00".
+  // Sem vírgula, o ponto é decimal: "10.50".
+  if (trimmed.includes(',')) {
+    return Number(trimmed.replace(/\./g, '').replace(',', '.'));
+  }
+  // "1.500" sem vírgula: grupos de exatamente 3 dígitos são milhar, não decimal.
+  if (/^\d{1,3}(\.\d{3})+$/.test(trimmed)) {
+    return Number(trimmed.replace(/\./g, ''));
+  }
+  return Number(trimmed);
 }
 
 function describeError(err: unknown): string {
@@ -46,7 +59,8 @@ export default function NewOrderPage() {
     state: '',
     zipCode: '',
   });
-  const [items, setItems] = useState<ItemForm[]>([emptyItem]);
+  const [items, setItems] = useState<ItemForm[]>([makeItem(0)]);
+  const nextItemId = useRef(1);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -69,7 +83,9 @@ export default function NewOrderPage() {
   }
 
   function addItem() {
-    setItems((current) => [...current, emptyItem]);
+    const id = nextItemId.current;
+    nextItemId.current += 1;
+    setItems((current) => [...current, makeItem(id)]);
   }
 
   function removeItem(index: number) {
@@ -91,8 +107,16 @@ export default function NewOrderPage() {
     setSubmitting(true);
     try {
       const order = await createOrder({
-        customerName,
-        address: { ...address, complement: address.complement || null },
+        customerName: customerName.trim(),
+        address: {
+          street: address.street.trim(),
+          number: address.number.trim(),
+          complement: address.complement.trim() || null,
+          district: address.district.trim(),
+          city: address.city.trim(),
+          state: address.state.trim(),
+          zipCode: address.zipCode.trim(),
+        },
         items: items.map((item) => ({
           name: item.name.trim(),
           quantity: Number(item.quantity),
@@ -118,7 +142,7 @@ export default function NewOrderPage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+        <div role="alert" className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -195,7 +219,7 @@ export default function NewOrderPage() {
           </div>
           <div className="space-y-3">
             {items.map((item, index) => (
-              <div key={index} className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 p-3">
+              <div key={item.id} className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 p-3">
                 <div className="min-w-40 flex-1">
                   <label htmlFor={`item-name-${index}`} className={labelClass}>Item</label>
                   <input id={`item-name-${index}`} type="text" required maxLength={120} value={item.name}

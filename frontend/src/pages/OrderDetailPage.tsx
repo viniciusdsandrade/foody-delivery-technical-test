@@ -66,8 +66,14 @@ export default function OrderDetailPage() {
     try {
       const updated = await updateOrderStatus(orderId, status);
       setOrder(updated);
-      setHistory(await getOrderHistory(orderId));
       toast.success(`Status atualizado para "${ORDER_STATUS_LABELS[status]}".`);
+      // Refetch em try próprio: o PATCH já deu certo — uma falha aqui não pode
+      // virar "não foi possível atualizar"; a timeline atualiza no próximo load.
+      try {
+        setHistory(await getOrderHistory(orderId));
+      } catch {
+        // silencioso de propósito
+      }
     } catch (err) {
       toast.error(errorMessage(err, 'Não foi possível atualizar o status.',
         { 422: 'Esta mudança de status não é permitida.' }));

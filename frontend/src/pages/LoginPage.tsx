@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { SESSION_EXPIRED_KEY } from '../services/api';
 import { errorMessage } from '../services/apiError';
@@ -7,6 +7,9 @@ import { errorMessage } from '../services/apiError';
 export default function LoginPage() {
   const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Destino que o PrivateRoute preservou (ex.: link direto para /orders/42).
+  const from = (location.state as { from?: string } | null)?.from ?? '/orders';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +26,7 @@ export default function LoginPage() {
   }, []);
 
   if (isAuthenticated) {
-    return <Navigate to="/orders" replace />;
+    return <Navigate to={from} replace />;
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -32,7 +35,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(email, password);
-      navigate('/orders', { replace: true });
+      navigate(from, { replace: true });
     } catch (err) {
       setError(errorMessage(err, 'Não foi possível entrar. Tente novamente.',
         { 401: 'E-mail ou senha inválidos.' }));

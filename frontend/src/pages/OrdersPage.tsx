@@ -16,6 +16,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     let cancelled = false;
+    setOrders(null);
     setError(null);
     listOrders(statusFilter || undefined)
       .then((data) => {
@@ -63,7 +64,7 @@ export default function OrdersPage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+        <div role="alert" className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
       )}
 
       {!error && orders === null && (
@@ -77,7 +78,7 @@ export default function OrdersPage() {
       )}
 
       <div className="space-y-3">
-        {orders?.map((order) => (
+        {!error && orders?.map((order) => (
           <Link
             key={order.id}
             to={`/orders/${order.id}`}
