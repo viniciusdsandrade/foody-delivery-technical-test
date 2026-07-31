@@ -37,7 +37,7 @@ Compatibilidade verificada em 30/07/2026; qualquer upgrade fora desta tabela vir
 | springdoc-openapi-starter-webmvc-ui | 3.0.3 | linha 3.0.x é a compatível com Boot 4 |
 | JaCoCo | 0.8.14 | primeira versão com suporte **oficial** a Java 25 (bytecode 69) |
 | H2 | gerenciada pelo Boot | não pinar manualmente |
-| Front-end | React 19, React Router 7, Tailwind 4 (`@tailwindcss/vite`), axios 1.x | versões correntes do npm no scaffold (Vite 7) |
+| Front-end | React 19, React Router 7, Tailwind 4 (`@tailwindcss/vite`), axios 1.x | versões correntes do npm no scaffold (Vite 8) |
 
 ## Modelo de dados
 
@@ -314,7 +314,8 @@ Estrutura: `src/{pages,components,services,context,hooks,types}`.
 ### T11 — Fluxo de autenticação ✅
 
 - **Objetivo**: páginas Login e Register, `AuthContext` (token em `localStorage`), guards
-  `PrivateRoute` e `AdminRoute`.
+  `PrivateRoute` e `ClientRoute` (criar pedido é ação exclusiva de CLIENT; não há tela
+  admin-only — as ações de ADMIN vivem no detalhe do pedido).
 - **Validação**: login redireciona para `/orders`; rota privada sem token volta para `/login`.
 - **Commits**: `feat: add login and registration flow`
 
@@ -347,8 +348,12 @@ Estrutura: `src/{pages,components,services,context,hooks,types}`.
   `JWT_SECRET` via env no back-end, **volume** para `./data` (H2 em arquivo sobrevive ao
   container), `VITE_API_URL` como **build arg** do front (Vite injeta em build-time, não em
   runtime), healthcheck da API em `/actuator/health` e `depends_on: condition: service_healthy`.
-- **Validação**: `docker compose up --build` sobe front (`:3000`) e API (`:8080`) funcionais;
-  dados sobrevivem a `docker compose restart`.
+- **Validação**: `docker compose config` válido e artefatos revisados estaticamente (imagens
+  base, `unzip` no estágio de build do Maven wrapper, healthcheck, volume do H2, build arg do
+  Vite). Ressalva honesta: `docker compose up --build` end-to-end ainda não foi executado —
+  daemon Docker indisponível na máquina de desenvolvimento. Roteiro pendente na primeira
+  máquina com daemon: up → login seed → criar pedido → `restart` (dados persistem) →
+  `down -v` + up (seed volta do zero).
 - **Commits**: `chore: add Dockerfiles and docker-compose`
 
 ### T16 — Revisão final e entrega ✅

@@ -31,7 +31,7 @@ acompanhamento do ciclo de vida do pedido (`RECEBIDO` → `EM_PREPARO` → `SAIU
 ## Pré-requisitos
 
 - Java 25
-- Node.js 22+
+- Node.js 22.12+ (exigência do Vite 8)
 - Docker e docker-compose (opcional, para execução containerizada)
 
 ## Como executar
@@ -43,7 +43,8 @@ cd backend
 ./mvnw spring-boot:run
 ```
 
-API em `http://localhost:8080`. Console do H2 em `http://localhost:8080/h2-console`
+API em `http://localhost:8080`. Console do H2 em `http://localhost:8080/h2-console` —
+desabilitado por padrão; para desenvolvimento local, suba com `H2_CONSOLE_ENABLED=true`
 (JDBC URL: `jdbc:h2:file:./data/foodydb`). Documentação OpenAPI em
 `http://localhost:8080/swagger-ui.html`. Para resetar o banco: `rm -rf backend/data`.
 
@@ -65,14 +66,16 @@ Aplicação em `http://localhost:5173`. A URL da API vem de `VITE_API_URL`
 ### Docker (tudo de uma vez)
 
 ```bash
-docker compose up --build
+JWT_SECRET="troque-por-uma-chave-secreta-com-32-ou-mais-caracteres" docker compose up --build
 ```
 
-Front-end em `http://localhost:3000`, API em `http://localhost:8080`. O front só sobe após a
-API ficar saudável (`/actuator/health`). O banco H2 fica no volume `foody-data` e sobrevive a
-`docker compose restart`/`down` (para zerar: `docker compose down -v`). Variáveis:
-`JWT_SECRET` (env do back-end) e `VITE_API_URL` (build arg do front — a URL que o **navegador**
-chama, default `http://localhost:8080`).
+Front-end em `http://localhost:3000`, API em `http://localhost:8080`. `JWT_SECRET` é
+**obrigatória** — o compose falha rápido sem ela, porque o default de desenvolvimento está
+versionado neste repositório público e não deve assinar tokens de uma stack exposta. O front
+só sobe após a API ficar saudável (`/actuator/health`). O banco H2 fica no volume `foody-data`
+e sobrevive a `docker compose restart`/`down` (para zerar: `docker compose down -v`).
+`VITE_API_URL` (build arg do front) é a URL que o **navegador** chama, default
+`http://localhost:8080`.
 
 ## Credenciais de exemplo (seed)
 
@@ -84,8 +87,8 @@ chama, default `http://localhost:8080`).
 ## Autenticação
 
 JWT stateless (HS256, expiração de 2h). O login retorna um token Bearer que o front-end envia
-no header `Authorization` a cada requisição. Rotas públicas: `/auth/**`, console H2, Swagger UI
-e `GET /actuator/health`; todo o restante exige autenticação. `401` e `403` seguem o mesmo
+no header `Authorization` a cada requisição. Rotas públicas: `/auth/**`, Swagger UI,
+`GET /actuator/health` e o console H2 quando habilitado; todo o restante exige autenticação. `401` e `403` seguem o mesmo
 contrato de erro JSON da API.
 
 ## Endpoints principais
