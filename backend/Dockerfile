@@ -12,13 +12,19 @@ COPY .mvn .mvn
 COPY mvnw ./
 RUN chmod +x mvnw && ./mvnw -B -q dependency:go-offline
 COPY src src
-RUN ./mvnw -B -q package -DskipTests
+RUN ./mvnw -B -q package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app
+# chown before USER: the named volume inherits /app/data's ownership on first
+# use, so the non-root process must already own it in the image.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
-COPY --from=build /app/target/tracker-0.0.1-SNAPSHOT.jar app.jar
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -r -u 10001 -U app \
+    && mkdir -p /app/data \
+    && chown -R app:app /app
+COPY --from=build /app/target/*.jar app.jar
+USER app
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

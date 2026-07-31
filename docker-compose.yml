@@ -3,12 +3,14 @@ name: foody-tracker
 services:
   backend:
     build: ./backend
+    restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
       # No default on purpose: the dev fallback lives in a public repo and must
       # never sign tokens for a stack that exposes port 8080.
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required (32+ chars); do not reuse the public dev default}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
     volumes:
       - foody-data:/app/data
     healthcheck:
@@ -27,8 +29,15 @@ services:
         # Vite inlines this at build time; it is the URL the BROWSER calls,
         # so it must stay host-reachable (not the internal service name).
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    restart: unless-stopped
     ports:
-      - "3000:80"
+      # 8080 inside: nginx-unprivileged cannot bind 80 as non-root.
+      - "3000:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
     depends_on:
       backend:
         condition: service_healthy
