@@ -15,6 +15,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -58,6 +59,12 @@ public class Order {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    // "default 0" keeps pre-existing rows valid when ddl-auto adds the column
+    // to an H2 file created before optimistic locking existed.
+    @Version
+    @Column(nullable = false, columnDefinition = "bigint default 0 not null")
+    private Long version;
 
     protected Order() {
     }

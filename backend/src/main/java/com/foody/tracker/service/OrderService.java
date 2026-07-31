@@ -16,6 +16,7 @@ import com.foody.tracker.repository.OrderStatusHistoryRepository;
 import com.foody.tracker.repository.UserRepository;
 import com.foody.tracker.security.AuthenticatedUser;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -98,6 +99,7 @@ public class OrderService {
     private BigDecimal calculateTotal(List<OrderItemRequest> items) {
         return items.stream()
                 .map(item -> item.unitPrice().multiply(BigDecimal.valueOf(item.quantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
     }
 }

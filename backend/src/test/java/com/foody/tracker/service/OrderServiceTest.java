@@ -90,6 +90,21 @@ class OrderServiceTest {
     }
 
     @Test
+    void createNormalizesTotalToScaleTwo() {
+        User user = user(1L, Role.CLIENT);
+        when(userRepository.getReferenceById(1L)).thenReturn(user);
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderRequest request = new OrderRequest("Ana Souza", addressDto(),
+                List.of(new OrderItemRequest("Pizza Margherita", 3, new BigDecimal("10"))));
+
+        OrderResponse response = orderService.create(request, new AuthenticatedUser(user));
+
+        assertThat(response.total()).isEqualTo(new BigDecimal("30.00"));
+        assertThat(response.total().scale()).isEqualTo(2);
+    }
+
+    @Test
     void listReturnsOwnOrdersForClient() {
         Order order = orderOwnedBy(user(1L, Role.CLIENT));
         when(orderRepository.findByUserIdOrderByCreatedAtDesc(1L)).thenReturn(List.of(order));
