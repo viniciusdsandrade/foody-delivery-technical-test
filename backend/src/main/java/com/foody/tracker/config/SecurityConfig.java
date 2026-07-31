@@ -7,7 +7,6 @@ import com.foody.tracker.security.RestAccessDeniedHandler;
 import com.foody.tracker.security.RestAuthenticationEntryPoint;
 import java.util.List;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -42,9 +41,15 @@ public class SecurityConfig {
         return http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**", "/error").permitAll()
-                        .requestMatchers(PathRequest.toH2Console()).permitAll()
+                        // String matcher on purpose: PathRequest.toH2Console() needs the
+                        // H2ConsoleProperties bean, which only exists when the console is
+                        // enabled — and the console is opt-in (H2_CONSOLE_ENABLED).
+                        .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+                        // Defense in depth: mirrors the @PreAuthorize rule on the PATCH
+                        // endpoint so removing the annotation alone cannot open it up.
+                        .requestMatchers(HttpMethod.PATCH, "/orders/*/status").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
