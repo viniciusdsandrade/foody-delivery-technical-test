@@ -104,7 +104,9 @@ contrato de erro JSON da API.
 | GET    | `/orders/{id}/history`    | dono ou ADMIN | Histórico de transições do pedido |
 
 Rota proibida para o papel → `403`; pedido de outro usuário ou inexistente → `404`
-(não revela existência). Contratos completos de request/response no [PLAN.md](PLAN.md).
+(não revela existência); atualização concorrente do mesmo pedido → `409` (lock otimista);
+erro inesperado → `500` no mesmo contrato JSON. Contratos completos de request/response
+no [PLAN.md](PLAN.md).
 
 ## Máquina de estados do pedido
 

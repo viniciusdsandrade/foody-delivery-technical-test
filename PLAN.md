@@ -111,7 +111,8 @@ Shapes de request/response por endpoint (fonte de verdade para back e front).
 { "id": 1, "name": "Ana Souza", "email": "ana@example.com", "role": "CLIENT" }
 ```
 
-`name`/`email`/`password` obrigatórios; `password` ≥ 6 chars; e-mail duplicado → `409`.
+`name`/`email`/`password` obrigatórios; `password` ≥ 6 chars e ≤ 72 bytes (limite do BCrypt);
+`name` ≤ 120 e `email` ≤ 180 chars; e-mail duplicado → `409`.
 Registro público cria sempre `CLIENT` (ADMIN só via seed).
 
 ### `POST /auth/login` — público → `200`
@@ -158,7 +159,9 @@ JWT HS256, claims: `sub` = e-mail, `uid`, `role`, `iat`, `exp` (+2h). Secret ≥
 }
 ```
 
-Validações: `items` ≥ 1; `quantity` ≥ 1; `unitPrice` > 0; endereço obrigatório
+Validações: `items` entre 1 e 100; `quantity` entre 1 e 1000; `unitPrice` > 0 com até 5 dígitos
+inteiros e 2 decimais; textos com `@Size` (nome/rua/bairro/cidade/item ≤ 120, número/CEP ≤ 20);
+endereço obrigatório
 (`complement` opcional); `total` ignorado se enviado (sempre calculado no servidor).
 
 ### `GET /orders?status=` — autenticado → `200`
@@ -278,7 +281,8 @@ Pacote base: `com.foody.tracker` (`controller`, `service`, `repository`, `entity
 ### T07 — Tratamento global de erros ✅
 
 - **Objetivo**: `@RestControllerAdvice` emitindo o contrato de erro para 400 (com
-  `fieldErrors`), 401, 403, 404, 409 e 422.
+  `fieldErrors`), 401, 403, 404, 405, 409 (e-mail duplicado, integridade e lock otimista),
+  415, 422 e 500 (fallback logado, sem vazar detalhes).
 - **Validação**: testes de controller verificando payload e status de cada cenário.
 - **Commits**: `feat: add global exception handling with error contract`
 
