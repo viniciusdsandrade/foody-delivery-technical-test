@@ -6,7 +6,7 @@ acompanhamento do ciclo de vida do pedido (`RECEBIDO` → `EM_PREPARO` → `SAIU
 `ENTREGUE`, com opção de `CANCELADO`).
 
 > **Status do projeto**: implementação concluída — back-end, front-end e Docker entregues
-> conforme o [PLAN.md](PLAN.md) (tasks T01–T16, um commit por task). Back-end com 102 testes
+> conforme o [PLAN.md](PLAN.md) (tasks T01–T16, um commit por task). Back-end com 111 testes
 > passando e `jacoco:check` exigindo 100% de cobertura de linhas nos pacotes de negócio.
 
 ## Stack
@@ -75,7 +75,13 @@ versionado neste repositório público e não deve assinar tokens de uma stack e
 só sobe após a API ficar saudável (`/actuator/health`). O banco H2 fica no volume `foody-data`
 e sobrevive a `docker compose restart`/`down` (para zerar: `docker compose down -v`).
 `VITE_API_URL` (build arg do front) é a URL que o **navegador** chama, default
-`http://localhost:8080`.
+`http://localhost:8080`. `CORS_ALLOWED_ORIGINS` (env do back-end) lista as origens
+permitidas, default `http://localhost:5173,http://localhost:3000` — ajuste se publicar o
+front em outra origem.
+
+> **Atualizando de uma versão anterior**: o back-end agora roda como usuário não-root
+> (uid 10001). Volumes criados por versões antigas pertencem a root e impedem o H2 de
+> escrever — rode `docker compose down -v` uma vez antes de subir a versão nova.
 
 ## Credenciais de exemplo (seed)
 
@@ -140,7 +146,7 @@ cd backend
 ./mvnw verify                # suíte completa + jacoco:check (relatório em target/site/jacoco)
 ```
 
-102 testes (unidade de services e máquina de estados, slices `@WebMvcTest`/`@DataJpaTest` e
+111 testes (unidade de services e máquina de estados, slices `@WebMvcTest`/`@DataJpaTest` e
 integração end-to-end com contexto real). O `jacoco:check` **falha o build** se a cobertura de
 linhas de `service`, `controller` e `security` (incluindo a máquina de estados) cair abaixo de
 100%. `dto`, `exception` e `config` também estão em 100%; entidades e `Application` ficam fora

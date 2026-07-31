@@ -1,32 +1,28 @@
-# React + TypeScript + Vite
+# Foody Tracker — front-end
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+SPA em React 19 + TypeScript (Vite) com Tailwind CSS. Consome a API do
+`backend/` deste repositório; instruções completas de execução no
+[README raiz](../README.md).
 
-Currently, two official plugins are available:
+## Rotas
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Rota          | Acesso        | Tela |
+|---------------|---------------|------|
+| `/login`      | público       | Login (avisa quando a sessão expirou) |
+| `/register`   | público       | Cadastro de cliente |
+| `/orders`     | autenticado   | Lista de pedidos com filtro por status |
+| `/orders/new` | CLIENT        | Criação de pedido com itens dinâmicos |
+| `/orders/:id` | dono ou ADMIN | Detalhe com timeline; ADMIN vê os botões de transição válidos |
 
-## React Compiler
+## Configuração
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `VITE_API_URL` — URL da API que o **navegador** chama (default
+  `http://localhost:8080`). No Docker é build arg (Vite inline em build time).
 
-## Expanding the Oxlint configuration
+## Scripts
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm run dev      # dev server em http://localhost:5173
+npm run build    # tsc -b + vite build (saída em dist/)
+npm run lint     # oxlint
 ```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
