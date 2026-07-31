@@ -122,6 +122,31 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void clientCannotSeeAnotherClientsOrderNorItsHistory() throws Exception {
+        String ownerToken = registerAndLogin("owner@example.com");
+        String intruderToken = registerAndLogin("intruder@example.com");
+
+        String created = mockMvc.perform(post("/orders")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_ORDER_BODY))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Number orderId = JsonPath.read(created, "$.id");
+
+        mockMvc.perform(get("/orders/" + orderId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + intruderToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Order not found"));
+
+        mockMvc.perform(get("/orders/" + orderId + "/history")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + intruderToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Order not found"));
+    }
+
+    @Test
     void clientCannotUpdateOrderStatusAndGetsForbiddenContract() throws Exception {
         String token = registerAndLogin("carol@example.com");
 
