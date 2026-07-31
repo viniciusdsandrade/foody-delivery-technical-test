@@ -2,6 +2,11 @@
 
 FROM eclipse-temurin:25-jdk AS build
 WORKDIR /app
+# unzip keeps the wrapper on the pinned .zip distribution; without it mvnw
+# falls back to .tar.gz and fails the checksum (the pinned SHA-256 is the zip's).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends unzip \
+    && rm -rf /var/lib/apt/lists/*
 COPY pom.xml ./
 COPY .mvn .mvn
 COPY mvnw ./
